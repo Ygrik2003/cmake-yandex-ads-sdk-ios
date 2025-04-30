@@ -1,8 +1,9 @@
 # cmake-yandex-ads-sdk-ios
 Minimal example for reproduce linking error when using cmake
 
+You need pass TEAM_ID (for example 1A2BC3456D) to configure step
 ```cmake
-cmake --preset xcode-ios
+cmake --preset xcode-ios -DCMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM=<TEAM_ID>
 cmake --build --preset xcode-ios
 ```
 Error:
