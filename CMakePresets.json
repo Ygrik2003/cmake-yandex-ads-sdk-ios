@@ -1,0 +1,26 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 2
+  },
+  "configurePresets": [
+    {
+      "name": "xcode-ios",
+      "displayName": "Using Xcode generator to build for iOS",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/.build/${presetName}",
+      "toolchainFile": "${sourceDir}/ios.toolchain.cmake"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "xcode-ios",
+      "configurePreset": "xcode-ios",
+      "targets": [
+        "test-yandex-sdk"
+      ]
+    }
+  ]
+}
