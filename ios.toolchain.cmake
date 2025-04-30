@@ -3,12 +3,6 @@ set(CMAKE_XCODE_ATTRIBUTE_ENABLE_BITCODE NO)
 set(CMAKE_XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET 13.0)
 set(CMAKE_XCODE_LINK_BUILD_PHASE_MODE BUILT_ONLY)
 
-# Team ID "3L3DY2377U" -> Entity name "EAST-GAMES, MChJ"
-# from: [https://developer.apple.com/account#MembershipDetailsCard]
-set(CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "3L3DY2377U")
-set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Apple Development")
-set(CMAKE_XCODE_ATTRIBUTE_PROVISIONING_PROFILE_SPECIFIER "XC: * Dev")
-
 # By default, search both the specified iOS SDK and the remainder of the host filesystem.
 # It was get from https://github.com/leetal/ios-cmake/blob/master/ios.toolchain.cmake
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM BOTH)
