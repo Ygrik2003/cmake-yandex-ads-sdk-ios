@@ -1,0 +1,24 @@
+name: iOS Build
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-dmg:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install dependencies from brew
+        run: |
+          brew install cmake
+
+      - name: Configure
+        run: cmake --preset xcode-ios
+
+      - name: Build
+        run: cmake --build --preset xcode-ios
