@@ -12,6 +12,16 @@
       "generator": "Xcode",
       "binaryDir": "${sourceDir}/.build/${presetName}",
       "toolchainFile": "${sourceDir}/ios.toolchain.cmake"
+    },
+    {
+      "name": "xcode-ios-cocoa",
+      "displayName": "Using Xcode generator to build for iOS via CocoaPods",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/.build/${presetName}",
+      "toolchainFile": "${sourceDir}/ios.toolchain.cmake",
+      "cacheVariables": {
+        "TP_REBUILD_COCOAPODS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -19,7 +29,14 @@
       "name": "xcode-ios",
       "configurePreset": "xcode-ios",
       "targets": [
-        "test-yandex-sdk"
+        "default"
+      ]
+    },
+    {
+      "name": "xcode-ios-cocoa",
+      "configurePreset": "xcode-ios-cocoa",
+      "targets": [
+        "default"
       ]
     }
   ]

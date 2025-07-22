@@ -3,78 +3,85 @@ project(test-yandex-sdk LANGUAGES Swift)
 
 include(FetchContent)
 
-function(tb_add_swift_package)
-    set(oneValueArgs PKG_NAME REPOSITORY TAG)
-    set(multiValueArgs FRAMEWORKS)
-    cmake_parse_arguments(PARSE_ARGV 0 arg "${options}" "${oneValueArgs}"
-                          "${multiValueArgs}")
-    if(NOT arg_PKG_NAME)
-        message(FATAL_ERROR "PKG_NAME is empty")
-    endif()
-    if(NOT arg_FRAMEWORKS)
-        message(FATAL_ERROR "FRAMEWORKS is empty")
-    endif()
-    if(NOT arg_REPOSITORY)
-        message(FATAL_ERROR "REPOSITORY is empty")
-    endif()
-    if(NOT arg_TAG)
-        message(FATAL_ERROR "TAG is empty")
-    endif()
-    fetchcontent_declare(
-        package
-        GIT_REPOSITORY ${arg_REPOSITORY}
-        GIT_TAG ${arg_TAG})
-    fetchcontent_makeavailable(package)
+function(tb_init_cocoapods)
 
-    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        set(osx_sysroot macosx)
-        set(target_platform "macos")
-        set(sdk_version 13)
-    elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
-        set(osx_sysroot iphoneos)
-        set(target_platform "ios")
-        set(sdk_version 13)
+    if(TP_REBUILD_COCOAPODS)
+        execute_process(
+            COMMAND pod install --repo-update
+                    --project-directory=${CMAKE_SOURCE_DIR}
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} ECHO_OUTPUT_VARIABLE
+                              ECHO_ERROR_VARIABLE COMMAND_ERROR_IS_FATAL ANY)
+        # By default CocoaPods generate this file for working. But we use integrate_targets
+        # for download all Pods on configure step, when xcodeproj doesn't exist. In this case
+        # xcworkspace doesn't generated automaticaly(
+        file(
+            CONFIGURE
+            OUTPUT
+            "${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}.xcworkspace/contents.xcworkspacedata"
+            CONTENT
+            [[
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace version = "1.0">
+    <FileRef location = "container:test-yandex-sdk.xcodeproj"/>
+    <FileRef location = "container:@CMAKE_SOURCE_DIR@/Pods/Pods.xcodeproj"/>
+</Workspace>
+        ]]
+            @ONLY)
+    else()
+        file(REMOVE "${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}.xcworkspace")
     endif()
-    set(triple "arm64-apple-${target_platform}${sdk_version}")
-    execute_process(
-        COMMAND xcrun --show-sdk-path --sdk ${osx_sysroot}
-        OUTPUT_VARIABLE sdk_path
-        OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ECHO "STDOUT"
-        COMMAND_ERROR_IS_FATAL ANY)
-    execute_process(
-        COMMAND swift build -c release -j 7 --sdk ${sdk_path} --build-path
-                ${package_BINARY_DIR} --triple ${triple}
-        WORKING_DIRECTORY ${package_SOURCE_DIR} COMMAND_ECHO "STDOUT"
-                          COMMAND_ERROR_IS_FATAL ANY)
-
-    foreach(framework IN ITEMS ${arg_FRAMEWORKS})
-        find_library(
-            path_to_framework
-            NAMES ${framework}
-            PATHS "${package_BINARY_DIR}/release/"
-            NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH NO_CACHE REQUIRED)
-        add_library(${framework} STATIC IMPORTED GLOBAL)
-        set_target_properties(${framework} PROPERTIES IMPORTED_LOCATION
-                                                      "${path_to_framework}")
-        add_library(spm::${framework} ALIAS ${framework})
-        unset(path_to_framework)
-    endforeach()
 endfunction()
 
-tb_add_swift_package(
-    PKG_NAME
-    YandexMobileAdsPackage
-    REPOSITORY
-    https://github.com/yandexmobile/yandex-ads-sdk-ios
-    TAG
-    7.12.1
-    FRAMEWORKS
-    YandexMobileAds
-    YandexMobileAdsInstream)
+function(tb_integrate_cocoapods_for_target target)
+    # Create custom target instead link with "-framework Pods_${target}"
+    # because it doenst work with our tb_target_create_modules_init_file
+    add_library(Pods_${target} INTERFACE)
+    target_link_libraries(Pods_${target} INTERFACE "-framework Pods_${target}")
+    target_link_libraries(${target} PRIVATE Pods_${target})
+    set_target_properties(
+        ${target}
+        PROPERTIES
+            XCODE_XCCONFIG
+            "${CMAKE_SOURCE_DIR}/Pods/Target Support Files/Pods-${target}/Pods-${target}.$<IF:$<CONFIG:Debug>,debug,release>.xcconfig"
+            XCODE_ATTRIBUTE_MODULEMAP_FILE
+            "${CMAKE_SOURCE_DIR}/Pods/Target Support Files/Pods-${target}/Pods-${target}.modulemap"
+            XCODE_ATTRIBUTE_PODS_CONFIGURATION_BUILD_DIR
+            "${CMAKE_SOURCE_DIR}/Pods/prebuild/Release$(EFFECTIVE_PLATFORM_NAME)"
+            XCODE_ATTRIBUTE_PODS_CONFIGURATION_BUILD_DIR[variant=Debug]
+            "${CMAKE_SOURCE_DIR}/Pods/prebuild/Debug$(EFFECTIVE_PLATFORM_NAME)"
+            # https://www.realtech-vr.com/home/?p=1998
+            XCODE_ATTRIBUTE_FRAMEWORK_SEARCH_PATHS
+            "${CMAKE_SOURCE_DIR}/Pods/prebuild/Release$(EFFECTIVE_PLATFORM_NAME)"
+            XCODE_ATTRIBUTE_FRAMEWORK_SEARCH_PATHS[variant=Debug]
+            "${CMAKE_SOURCE_DIR}/Pods/prebuild/Debug$(EFFECTIVE_PLATFORM_NAME)"
+            XCODE_ATTRIBUTE_LIBRARY_SEARCH_PATHS
+            "${CMAKE_SOURCE_DIR}/Pods/prebuild/Release$(EFFECTIVE_PLATFORM_NAME)"
+            XCODE_ATTRIBUTE_LIBRARY_SEARCH_PATHS[variant=Debug]
+            "${CMAKE_SOURCE_DIR}/Pods/prebuild/Debug$(EFFECTIVE_PLATFORM_NAME)")
+    set(copy_script
+        "${CMAKE_SOURCE_DIR}/Pods/Target Support Files/Pods-${target}/Pods-${target}-resources.sh"
+    )
+    if(EXISTS copy_script)
+        add_custom_command(
+            TARGET ${target}
+            POST_BUILD
+            COMMAND
+                /bin/sh
+                "${CMAKE_SOURCE_DIR}/Pods/Target Support Files/Pods-${target}/Pods-${target}-resources.sh"
+        )
+    endif()
+endfunction()
 
-add_executable(test-yandex-sdk MACOSX_BUNDLE test.swift)
-target_link_libraries(test-yandex-sdk PRIVATE spm::YandexMobileAds
-                                              spm::YandexMobileAdsInstream)
+tb_init_cocoapods()
+add_executable(default MACOSX_BUNDLE test.swift)
+
 set_target_properties(
-    test-yandex-sdk PROPERTIES XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER
-                               com.test.yandexsdk)
+    default PROPERTIES XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER
+                       com.test.yandexsdk)
+
+target_include_directories(
+    default
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/Pods/YandexMobileAds/static/YandexMobileAds.xcframework/ios-arm64/YandexMobileAds.framework/Headers
+)
+tb_integrate_cocoapods_for_target(default)
